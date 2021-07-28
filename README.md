@@ -2,4 +2,4 @@
 
 ## Introduction
 
-This demo shows how to use [Pico Android Native SDK](https://developer.pico-interactive.com/sdk/index?id=6).
+The project integrates `Pico Native SDK v1.3.6` to show the basic functions of the SDK (such as rendering, sensor acquisition, etc.).
