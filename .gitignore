@@ -1,5 +1,5 @@
 # Built application files
-*.apk
+#*.apk
 *.aar
 *.ap_
 *.aab
@@ -83,3 +83,10 @@ lint/generated/
 lint/outputs/
 lint/tmp/
 # lint/reports/
+.idea/.gitignore
+.idea/checkstyle-idea.xml
+.idea/compiler.xml
+.idea/inspectionProfiles/
+.idea/jarRepositories.xml
+.idea/misc.xml
+.idea/runConfigurations.xml
