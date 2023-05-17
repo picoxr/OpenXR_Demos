@@ -1,0 +1,2 @@
+rootProject.name = "OpenXR_Demos"
+include ':app'
