@@ -11,6 +11,7 @@
 - videoplayer
 - XR_FB_passthrough
 - eye tracking
+- hand tracking
 
 
 ## third-party open code
