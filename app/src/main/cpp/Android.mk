@@ -97,6 +97,8 @@ LOCAL_SRC_FILES := main.cpp \
                    demos/mesh.cpp \
                    demos/model.cpp \
                    demos/controller.cpp \
+                   demos/hand.cpp \
+                   demos/cube.cpp \
                    demos/ray.cpp \
                    demos/guiBase.cpp \
                    demos/gui.cpp \

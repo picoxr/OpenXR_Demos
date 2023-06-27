@@ -60,8 +60,8 @@ typedef struct Extentions_tag{
     bool activePassthrough;     //XR_FB_passthrough
     bool isSupportEyeTracking;  //eye tracking
     bool activeEyeTracking;
-
-    Extentions_tag(): activePassthrough(false), isSupportEyeTracking(false), activeEyeTracking(false) {}
+    
+    Extentions_tag(): activePassthrough(true), isSupportEyeTracking(false), activeEyeTracking(false) {}
 
     void initialize(XrInstance m_instance) {
         //XR_FB_display_refresh_rate
@@ -81,6 +81,7 @@ public:
     virtual void setControllerPose(int leftright, const XrPosef& pose) = 0;
     virtual void setControllerPower(int leftright, int power) = 0;
     virtual void setGazeLocation(XrSpaceLocation& gazeLocation, std::vector<XrView>& views, float ipd, XrResult result = XR_SUCCESS) = 0;
+    virtual void setHandJointLocation(XrHandJointLocationEXT* location) = 0;
     virtual void inputEvent(int leftright, const ApplicationEvent& event) = 0;
     virtual void renderFrame(const XrPosef& pose, const glm::mat4& project, const glm::mat4& view, int32_t eye) = 0;
 };

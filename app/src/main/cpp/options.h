@@ -15,8 +15,6 @@ struct Options {
 
     std::string AppSpace{"Local"};
 
-    bool Xr_fb_passthrough{true};
-
     struct {
         XrFormFactor FormFactor{XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY};
 

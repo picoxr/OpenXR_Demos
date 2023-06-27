@@ -60,7 +60,7 @@ void Text::loadFaces(const wchar_t* text, int32_t length) {
 
     std::vector<char> fftData = readFileFromAssets(fft.c_str());
     if (FT_New_Memory_Face(ft, (FT_Byte*)fftData.data(), fftData.size(), 0, &face)) {
-        errorf("FT_New_Memory_Face error\n");
+        errorf("FT_New_Memory_Face error");
         return;
     }
 

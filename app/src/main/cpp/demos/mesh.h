@@ -17,6 +17,12 @@ struct Vertex {
     glm::vec3 Bitangent;
     int BoneIDs[MAX_BONE_INFLUENCE];
     float Weights[MAX_BONE_INFLUENCE];
+    Vertex() { 
+        for (int i = 0 ; i < MAX_BONE_INFLUENCE; i++) {
+            BoneIDs[i] = -1;
+            Weights[i] = 0;
+        }
+    };
 };
 
 struct Texture {

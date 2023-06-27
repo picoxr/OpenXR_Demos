@@ -1,9 +1,11 @@
 /* Copyright (2021-2023) Bytedance Ltd. and/or its affiliates, All rights reserved. */
+#include <dirent.h>
 #include "pch.h"
 #include "common.h"
 #include "options.h"
 #include "application.h"
 #include "controller.h"
+#include "hand.h"
 #include <common/xr_linear.h>
 #include "logger.h"
 #include "gui.h"
@@ -11,8 +13,8 @@
 #include "text.h"
 #include "player.h"
 #include "utils.h"
-#include <dirent.h>
 #include "graphicsplugin.h"
+#include "cube.h"
 
 class Application : public IApplication {
 public:
@@ -23,6 +25,7 @@ public:
     virtual void setControllerPose(int leftright, const XrPosef& pose) override;
     virtual void setControllerPower(int leftright, int power) override;
     virtual void setGazeLocation(XrSpaceLocation& gazeLocation, std::vector<XrView>& views, float ipd, XrResult result = XR_SUCCESS) override;
+    virtual void setHandJointLocation(XrHandJointLocationEXT* location) override;
     virtual void inputEvent(int leftright, const ApplicationEvent& event) override;
     virtual void renderFrame(const XrPosef& pose, const glm::mat4& project, const glm::mat4& view, int32_t eye) override;
 private:
@@ -31,6 +34,7 @@ private:
     void showDashboardController();
     void showDeviceInformation(const glm::mat4& project, const glm::mat4& view);
     void renderEyeTracking(const glm::mat4& project, const glm::mat4& view, int32_t eye);
+    void renderHandTracking(const glm::mat4& project, const glm::mat4& view);
     void getAllVideoFiles(const std::string& path, std::vector<std::string>& files);
     void startPlayVideo(const std::string& file);
     void haptic(int leftright, float amplitude, float frequency, float duration/*seconds*/);
@@ -50,6 +54,7 @@ private:
     std::shared_ptr<Player> mPlayer;
     glm::mat4 mControllerModel;
     XrPosef mControllerPose[HAND_COUNT];
+    std::shared_ptr<CubeRender> mCubeRender;
 
     //openxr
     XrInstance m_instance;          //Keep the same naming as openxr_program.cpp
@@ -58,6 +63,7 @@ private:
     XrSpaceLocation m_gazeLocation;
     std::vector<XrView> m_views;
     float mIpd;
+    XrHandJointLocationEXT m_jointLocations[HAND_COUNT][XR_HAND_JOINT_COUNT_EXT];
 
     //app data
     std::string mDeviceModel;
@@ -84,6 +90,7 @@ Application::Application(const std::shared_ptr<struct Options>& options, const s
     mTextRender = std::make_shared<Text>();
     mPlayer = std::make_shared<Player>();
     mHapticCallback = nullptr;
+    mCubeRender = std::make_shared<CubeRender>();
 }
 
 Application::~Application() {
@@ -136,6 +143,7 @@ bool Application::initialize(const XrInstance instance, const XrSession session,
     mEyeTrackingRay->initialize();
     mPanel->initialize(600, 800);  //set resolution
     mTextRender->initialize();
+    mCubeRender->initialize();
 
     const XrGraphicsBindingOpenGLESAndroidKHR *binding = reinterpret_cast<const XrGraphicsBindingOpenGLESAndroidKHR*>(mGraphicsPlugin->GetGraphicsBinding());
     mPlayer->initialize(binding->display);
@@ -163,15 +171,17 @@ void Application::setControllerPose(int leftright, const XrPosef& pose) {
     XrMatrix4x4f_CreateTranslationRotationScale(&model, &pose.position, &pose.orientation, &scale);
     glm::mat4 m = glm::make_mat4((float*)&model);
     mController->setModel(leftright, m);
-
     mControllerPose[leftright] = pose;
-
 }
 
 void Application::setGazeLocation(XrSpaceLocation& gazeLocation, std::vector<XrView>& views, float ipd, XrResult result) {
     mIpd = ipd;
     memcpy(&m_gazeLocation, &gazeLocation, sizeof(gazeLocation));
     m_views = views;
+}
+
+void Application::setHandJointLocation(XrHandJointLocationEXT* location) {
+    memcpy(&m_jointLocations, location, sizeof(m_jointLocations));
 }
 
 void Application::startPlayVideo(const std::string& file) {
@@ -475,6 +485,28 @@ void Application::renderEyeTracking(const glm::mat4& project, const glm::mat4& v
     }
 }
 
+void Application::renderHandTracking(const glm::mat4& project, const glm::mat4& view) {
+    std::vector<CubeRender::Cube> cubes;
+    for (auto hand = 0; hand < HAND_COUNT; hand++) {
+        for (int i = 0; i < XR_HAND_JOINT_COUNT_EXT; i++) {
+            XrHandJointLocationEXT& jointLocation = m_jointLocations[hand][i];
+            if (jointLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT && jointLocation.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT) {
+
+                XrMatrix4x4f m{};
+                XrVector3f scale{1.0f, 1.0f, 1.0f};
+                XrMatrix4x4f_CreateTranslationRotationScale(&m, &jointLocation.pose.position, &jointLocation.pose.orientation, &scale);
+                glm::mat4 model = glm::make_mat4((float*)&m);
+
+                CubeRender::Cube cube;
+                cube.model = model;
+                cube.scale = 0.01f;
+                cubes.push_back(cube);
+            }
+        }
+    }
+    mCubeRender->render(project, view, cubes);
+}
+
 void Application::renderFrame(const XrPosef& pose, const glm::mat4& project, const glm::mat4& view, int32_t eye) {
     layout();
     showDeviceInformation(project, view);
@@ -488,5 +520,7 @@ void Application::renderFrame(const XrPosef& pose, const glm::mat4& project, con
     renderEyeTracking(project, view, eye);
     
     mController->render(project, view);
+
+    renderHandTracking(project, view);
 
 }

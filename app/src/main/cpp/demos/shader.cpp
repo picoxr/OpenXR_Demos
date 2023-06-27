@@ -34,6 +34,11 @@ bool Shader::checkCompileErrors(GLuint shader, std::string type) {
 }
 
 bool Shader::loadShader(const char* vertexShaderCode, const char* fragmentShaderCode) {
+    int maxVertexUniform, maxFragmentUniform;
+    GL_CALL(glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &maxVertexUniform));
+    GL_CALL(glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &maxFragmentUniform));
+    //infof("maxVertexUniform:%d, maxFragmentUniform:%d", maxVertexUniform, maxFragmentUniform);
+
     GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
     GL_CALL(glShaderSource(vertex, 1, &vertexShaderCode, nullptr));
     GL_CALL(glCompileShader(vertex));

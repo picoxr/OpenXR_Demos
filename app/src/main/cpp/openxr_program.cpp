@@ -136,13 +136,10 @@ struct OpenXrProgram : IOpenXrProgram {
         Log::Write(Log::Level::Info, Fmt("device is: %s", buffer));
         if (std::string(buffer) == "Pico Neo 3 Pro Eye") {
             m_deviceType = DeviceTypeNeo3ProEye;
-            m_extentions.isSupportEyeTracking = true;
         } else if (std::string(buffer) == "Pico 4") {
             m_deviceType = DeviceTypePico4;
-            m_extentions.isSupportEyeTracking = false;
         }else if (std::string(buffer) == "PICO 4 Pro") {
             m_deviceType = DeviceTypePico4Pro;
-            m_extentions.isSupportEyeTracking = true;
         }
 
         __system_property_get("ro.build.id", buffer);
@@ -153,6 +150,28 @@ struct OpenXrProgram : IOpenXrProgram {
         if (m_deviceROM < 0x540) {
             CHECK_XRRESULT(XR_ERROR_VALIDATION_FAILURE, "This demo can only run on devices with ROM version greater than 540");
         }
+
+        XrSystemEyeGazeInteractionPropertiesEXT eyeTrackingSystemProperties{XR_TYPE_SYSTEM_EYE_GAZE_INTERACTION_PROPERTIES_EXT};
+        XrSystemProperties systemProperties{XR_TYPE_SYSTEM_PROPERTIES, &eyeTrackingSystemProperties};
+        CHECK_XRCMD(xrGetSystemProperties(m_instance, m_systemId, &systemProperties));
+
+        if (eyeTrackingSystemProperties.supportsEyeGazeInteraction) {
+            m_extentions.isSupportEyeTracking = true;
+            Log::Write(Log::Level::Info, Fmt("support eye tracking"));
+        } else {
+            m_extentions.isSupportEyeTracking = false;
+        }
+
+        // Log system properties.
+        Log::Write(Log::Level::Info, Fmt("System Properties: Name=%s VendorId=%d", systemProperties.systemName, systemProperties.vendorId));
+        Log::Write(Log::Level::Info, Fmt("System Graphics Properties: MaxWidth=%d MaxHeight=%d MaxLayers=%d",
+                                         systemProperties.graphicsProperties.maxSwapchainImageWidth,
+                                         systemProperties.graphicsProperties.maxSwapchainImageHeight,
+                                         systemProperties.graphicsProperties.maxLayerCount));
+        Log::Write(Log::Level::Info, Fmt("System Tracking Properties: OrientationTracking=%s PositionTracking=%s",
+                                         systemProperties.trackingProperties.orientationTracking == XR_TRUE ? "True" : "False",
+                                         systemProperties.trackingProperties.positionTracking == XR_TRUE ? "True" : "False"));
+
     }
 
     static void LogLayersAndExtensions() {
@@ -223,19 +242,21 @@ struct OpenXrProgram : IOpenXrProgram {
         std::transform(graphicsExtensions.begin(), graphicsExtensions.end(), std::back_inserter(extensions),
                        [](const std::string& ext) { return ext.c_str(); });
 
-        extensions.push_back(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME);
         extensions.push_back(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
+        extensions.push_back(XR_KHR_CONVERT_TIMESPEC_TIME_EXTENSION_NAME);
 
-        if (m_options.Xr_fb_passthrough) {
-            extensions.push_back(XR_FB_PASSTHROUGH_EXTENSION_NAME);
-            extensions.push_back(XR_FB_TRIANGLE_MESH_EXTENSION_NAME);
-        }
+        //XR_FB_passthrough
+        extensions.push_back(XR_FB_PASSTHROUGH_EXTENSION_NAME);
+        extensions.push_back(XR_FB_TRIANGLE_MESH_EXTENSION_NAME);
 
+        //refresh rate
         extensions.push_back(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME);
 
-        if (m_extentions.isSupportEyeTracking) {
-            extensions.push_back(XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME);
-        }
+        //eye tracking
+        extensions.push_back(XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME);
+
+        //hand tracking
+        extensions.push_back(XR_EXT_HAND_TRACKING_EXTENSION_NAME);
 
         XrInstanceCreateInfo createInfo{XR_TYPE_INSTANCE_CREATE_INFO};
         createInfo.next = m_platformPlugin->GetInstanceCreateExtension();
@@ -249,38 +270,39 @@ struct OpenXrProgram : IOpenXrProgram {
     }
 
     void CreateInstance() override {
-        CheckDeviceSupportExtentions();
         LogLayersAndExtensions();
         CreateInstanceInternal();
         LogInstanceInfo();
 
-        if (m_options.Xr_fb_passthrough) {
-            //XR_FB_passthrough
-            PFN_INITIALIZE(xrCreatePassthroughFB);
-            PFN_INITIALIZE(xrDestroyPassthroughFB);
-            PFN_INITIALIZE(xrPassthroughStartFB);
-            PFN_INITIALIZE(xrPassthroughPauseFB);
-            PFN_INITIALIZE(xrCreatePassthroughLayerFB);
-            PFN_INITIALIZE(xrDestroyPassthroughLayerFB);
-            PFN_INITIALIZE(xrPassthroughLayerSetStyleFB);
-            PFN_INITIALIZE(xrPassthroughLayerPauseFB);
-            PFN_INITIALIZE(xrPassthroughLayerResumeFB);
-            PFN_INITIALIZE(xrCreateGeometryInstanceFB);
-            PFN_INITIALIZE(xrDestroyGeometryInstanceFB);
-            PFN_INITIALIZE(xrGeometryInstanceSetTransformFB);
-            // FB_triangle_mesh
-            PFN_INITIALIZE(xrCreateTriangleMeshFB);
-            PFN_INITIALIZE(xrDestroyTriangleMeshFB);
-            PFN_INITIALIZE(xrTriangleMeshGetVertexBufferFB);
-            PFN_INITIALIZE(xrTriangleMeshGetIndexBufferFB);
-            PFN_INITIALIZE(xrTriangleMeshBeginUpdateFB);
-            PFN_INITIALIZE(xrTriangleMeshEndUpdateFB);
-            PFN_INITIALIZE(xrTriangleMeshBeginVertexBufferUpdateFB);
-            PFN_INITIALIZE(xrTriangleMeshEndVertexBufferUpdateFB);
-        }
+        //XR_FB_passthrough
+        PFN_INITIALIZE(xrCreatePassthroughFB);
+        PFN_INITIALIZE(xrDestroyPassthroughFB);
+        PFN_INITIALIZE(xrPassthroughStartFB);
+        PFN_INITIALIZE(xrPassthroughPauseFB);
+        PFN_INITIALIZE(xrCreatePassthroughLayerFB);
+        PFN_INITIALIZE(xrDestroyPassthroughLayerFB);
+        PFN_INITIALIZE(xrPassthroughLayerSetStyleFB);
+        PFN_INITIALIZE(xrPassthroughLayerPauseFB);
+        PFN_INITIALIZE(xrPassthroughLayerResumeFB);
+        PFN_INITIALIZE(xrCreateGeometryInstanceFB);
+        PFN_INITIALIZE(xrDestroyGeometryInstanceFB);
+        PFN_INITIALIZE(xrGeometryInstanceSetTransformFB);
+        // FB_triangle_mesh
+        PFN_INITIALIZE(xrCreateTriangleMeshFB);
+        PFN_INITIALIZE(xrDestroyTriangleMeshFB);
+        PFN_INITIALIZE(xrTriangleMeshGetVertexBufferFB);
+        PFN_INITIALIZE(xrTriangleMeshGetIndexBufferFB);
+        PFN_INITIALIZE(xrTriangleMeshBeginUpdateFB);
+        PFN_INITIALIZE(xrTriangleMeshEndUpdateFB);
+        PFN_INITIALIZE(xrTriangleMeshBeginVertexBufferUpdateFB);
+        PFN_INITIALIZE(xrTriangleMeshEndVertexBufferUpdateFB);
+
+        //hand tracking
+        PFN_INITIALIZE(xrCreateHandTrackerEXT);
+        PFN_INITIALIZE(xrDestroyHandTrackerEXT);
+        PFN_INITIALIZE(xrLocateHandJointsEXT);
 
         m_extentions.initialize(m_instance);
-
     }
 
     void LogViewConfigurations() {
@@ -773,6 +795,7 @@ struct OpenXrProgram : IOpenXrProgram {
             CHECK_XRCMD(xrCreateSession(m_instance, &createInfo, &m_session));
         }
 
+        CheckDeviceSupportExtentions();
         LogReferenceSpaces();
         InitializeActions();
         CreateVisualizedSpaces();
@@ -783,7 +806,7 @@ struct OpenXrProgram : IOpenXrProgram {
         }
 
         //XR_FB_passthrough
-        if (m_options.Xr_fb_passthrough) {
+        {
             XrPassthroughCreateInfoFB passthroughCreateInfo = {XR_TYPE_PASSTHROUGH_CREATE_INFO_FB};
             passthroughCreateInfo.flags = XR_PASSTHROUGH_IS_RUNNING_AT_CREATION_BIT_FB;
             CHECK_XRCMD(xrCreatePassthroughFB(m_session, &passthroughCreateInfo, &m_passthrough));
@@ -821,6 +844,16 @@ struct OpenXrProgram : IOpenXrProgram {
             Log::Write(Log::Level::Info, Fmt("Passthrough-Create Geometry Instance:%d", m_geometryInstance));
         }
 
+
+        //hand tracking
+        if (xrCreateHandTrackerEXT) {
+            for (auto hand : {Side::LEFT, Side::RIGHT}) {
+                XrHandTrackerCreateInfoEXT createInfo{XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT};
+                createInfo.handJointSet = XR_HAND_JOINT_SET_DEFAULT_EXT;
+                createInfo.hand = (hand == Side::LEFT ? XR_HAND_LEFT_EXT : XR_HAND_RIGHT_EXT);
+                CHECK_XRCMD(xrCreateHandTrackerEXT(m_session, &createInfo, &m_handTracker[hand]));
+            }
+        }
     }
 
     void InitializeApplication() override {
@@ -841,22 +874,6 @@ struct OpenXrProgram : IOpenXrProgram {
         CHECK(m_session != XR_NULL_HANDLE);
         CHECK(m_swapchains.empty());
         CHECK(m_configViews.empty());
-
-        Log::Write(Log::Level::Info, Fmt("CreateSwapchains......"));
-
-        // Read graphics properties for preferred swapchain length and logging.
-        XrSystemProperties systemProperties{XR_TYPE_SYSTEM_PROPERTIES};
-        CHECK_XRCMD(xrGetSystemProperties(m_instance, m_systemId, &systemProperties));
-
-        // Log system properties.
-        Log::Write(Log::Level::Info, Fmt("System Properties: Name=%s VendorId=%d", systemProperties.systemName, systemProperties.vendorId));
-        Log::Write(Log::Level::Info, Fmt("System Graphics Properties: MaxWidth=%d MaxHeight=%d MaxLayers=%d",
-                                         systemProperties.graphicsProperties.maxSwapchainImageWidth,
-                                         systemProperties.graphicsProperties.maxSwapchainImageHeight,
-                                         systemProperties.graphicsProperties.maxLayerCount));
-        Log::Write(Log::Level::Info, Fmt("System Tracking Properties: OrientationTracking=%s PositionTracking=%s",
-                                         systemProperties.trackingProperties.orientationTracking == XR_TRUE ? "True" : "False",
-                                         systemProperties.trackingProperties.positionTracking == XR_TRUE ? "True" : "False"));
 
         // Note: No other view configurations exist at the time this code was written. If this
         // condition is not met, the project will need to be audited to see how support should be
@@ -1338,7 +1355,7 @@ struct OpenXrProgram : IOpenXrProgram {
             }
         }
 
-        if (m_options.Xr_fb_passthrough && m_extentions.activePassthrough) {
+        if (m_extentions.activePassthrough) {
             XrCompositionLayerPassthroughFB compositionLayerPassthrough = {XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_FB};
             compositionLayerPassthrough.layerHandle = m_passthroughLayerReconstruction;
             //passthrough_layer.layerHandle = m_passthroughLayer_project;
@@ -1406,6 +1423,62 @@ struct OpenXrProgram : IOpenXrProgram {
                 m_application->setGazeLocation(gazeLocation, m_views, ipd, res);
             }
         }
+
+        //hand tracking
+        XrHandJointLocationEXT jointLocations[Side::COUNT][XR_HAND_JOINT_COUNT_EXT];
+        for (auto hand : {Side::LEFT, Side::RIGHT}) {
+            XrHandJointLocationsEXT locations{XR_TYPE_HAND_JOINT_LOCATIONS_EXT};
+            locations.jointCount = XR_HAND_JOINT_COUNT_EXT;
+            locations.jointLocations = jointLocations[hand];
+
+            XrHandJointsLocateInfoEXT locateInfo{XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT};
+            locateInfo.baseSpace = m_appSpace;
+            locateInfo.time = predictedDisplayTime;
+            XrResult res = xrLocateHandJointsEXT(m_handTracker[hand], &locateInfo, &locations);
+            if (res != XR_SUCCESS) {
+                Log::Write(Log::Level::Error, Fmt("m_pfnXrLocateHandJointsEXT res %d", res));
+            }
+        }
+        XrHandJointLocationEXT& leftIndexTip = jointLocations[Side::LEFT][XR_HAND_JOINT_INDEX_TIP_EXT];
+        XrHandJointLocationEXT& rightIndexTip = jointLocations[Side::RIGHT][XR_HAND_JOINT_INDEX_TIP_EXT];
+        //Log::Write(Log::Level::Error, Fmt("leftIndexTip.locationFlags:%d, rightIndexTip.locationFlags %d", leftIndexTip.locationFlags, rightIndexTip.locationFlags));
+        if ((leftIndexTip.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 && (rightIndexTip.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0) {
+            XrVector3f distance;
+            XrVector3f_Sub(&distance, &leftIndexTip.pose.position, &rightIndexTip.pose.position);
+            float len = XrVector3f_Length(&distance);
+            // bring center of index fingers to within 1cm. Probably fine for most humans, unless
+            // they have huge fingers.
+            if (len < 0.01f) {
+                Log::Write(Log::Level::Error, Fmt("len %f", len));
+            }
+        }
+        for (auto hand : {Side::LEFT, Side::RIGHT}) {
+            for (int i = 0; i < XR_HAND_JOINT_COUNT_EXT; i++) {
+                XrHandJointLocationEXT& jointLocation = jointLocations[hand][i];
+                if ((jointLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0) {
+                    //-------------------------------------------------------------
+                    XrHandJointLocationEXT reference_position = jointLocations[hand][1];
+                    XrHandJointLocationEXT reference;
+                    if (i == 2 || i == 7 || i == 12 || i == 17 || i == 21) {
+                        reference = jointLocations[hand][1];
+                    } else {
+                        reference = jointLocations[hand][i - 1];
+                    }
+                    if (i > 1) {
+                        XrQuaternionf orientation;
+                        XrQuaternionf_Multiply(&orientation, &jointLocation.pose.orientation, &reference.pose.orientation);
+                        jointLocation.pose.orientation = orientation;
+
+                        //jointLocation.pose.position.x = jointLocation.pose.position.x - reference_position.pose.position.x;
+                        //jointLocation.pose.position.y = jointLocation.pose.position.y - reference_position.pose.position.y;
+                        //jointLocation.pose.position.z = jointLocation.pose.position.z - reference_position.pose.position.z;
+                    }
+                    //--------------------------------------------------------------
+                }
+            }
+        }
+        m_application->setHandJointLocation((XrHandJointLocationEXT*)jointLocations);
+        //end hand tracking
 
         XrSpaceVelocity velocity{XR_TYPE_SPACE_VELOCITY};
         XrSpaceLocation spaceLocation{XR_TYPE_SPACE_LOCATION, &velocity};
@@ -1510,6 +1583,13 @@ struct OpenXrProgram : IOpenXrProgram {
     PFN_DECLARE(xrTriangleMeshEndUpdateFB);
     PFN_DECLARE(xrTriangleMeshBeginVertexBufferUpdateFB);
     PFN_DECLARE(xrTriangleMeshEndVertexBufferUpdateFB);
+
+
+    //hand tracking
+    PFN_DECLARE(xrCreateHandTrackerEXT);
+    PFN_DECLARE(xrDestroyHandTrackerEXT);
+    PFN_DECLARE(xrLocateHandJointsEXT);
+    XrHandTrackerEXT m_handTracker[Side::COUNT] = {0};
 
     Extentions m_extentions;
 

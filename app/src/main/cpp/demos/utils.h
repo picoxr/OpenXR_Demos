@@ -7,7 +7,7 @@
 
 #define OPENGL_DEBUG
 #ifdef OPENGL_DEBUG
-#define GL_CALL(_CALL)  do { _CALL; GLenum gl_err = glGetError(); if (gl_err != 0) Log::Write(Log::Level::Error,__FILE__,__LINE__,Fmt("GL error %d returned from '%s'\n", gl_err,#_CALL)); } while (0)
+#define GL_CALL(_CALL)  do { _CALL; GLenum gl_err = glGetError(); if (gl_err != 0) Log::Write(Log::Level::Error,__FILE__,__LINE__,Fmt("GL error %d returned from '%s'", gl_err,#_CALL)); } while (0)
 #else
 #define GL_CALL(_CALL)
 #endif
