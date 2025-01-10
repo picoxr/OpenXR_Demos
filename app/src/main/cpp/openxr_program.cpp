@@ -257,7 +257,7 @@ struct OpenXrProgram : IOpenXrProgram {
 
         //hand tracking
         extensions.push_back(XR_EXT_HAND_TRACKING_EXTENSION_NAME);
-
+        extensions.push_back(XR_BD_CONTROLLER_INTERACTION_EXTENSION_NAME);
         XrInstanceCreateInfo createInfo{XR_TYPE_INSTANCE_CREATE_INFO};
         createInfo.next = m_platformPlugin->GetInstanceCreateExtension();
         createInfo.enabledExtensionCount = (uint32_t)extensions.size();
