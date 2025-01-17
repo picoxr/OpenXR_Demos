@@ -24,6 +24,7 @@ typedef enum {
     DeviceTypeNeo3ProEye,
     DeviceTypePico4,
     DeviceTypePico4Pro,
+    DeviceTypePico4Ultra,
 }DeviceType;
 
 #if !defined(XR_USE_PLATFORM_WIN32)
@@ -136,19 +137,23 @@ struct OpenXrProgram : IOpenXrProgram {
         Log::Write(Log::Level::Info, Fmt("device is: %s", buffer));
         if (std::string(buffer) == "Pico Neo 3 Pro Eye") {
             m_deviceType = DeviceTypeNeo3ProEye;
-        } else if (std::string(buffer) == "Pico 4") {
+        } else if (std::string(buffer) == "PICO 4") {
             m_deviceType = DeviceTypePico4;
         }else if (std::string(buffer) == "PICO 4 Pro") {
             m_deviceType = DeviceTypePico4Pro;
+        } else if (std::string(buffer) == "PICO 4 Ultra") {
+            m_deviceType = DeviceTypePico4Ultra;
         }
 
-        __system_property_get("ro.build.id", buffer);
-        int a, b, c;
-        sscanf(buffer, "%d.%d.%d",&a, &b, &c);
-        m_deviceROM = (a << 8) + (b << 4) + c;
-        Log::Write(Log::Level::Info, Fmt("device ROM: %x", m_deviceROM));
-        if (m_deviceROM < 0x540) {
-            CHECK_XRRESULT(XR_ERROR_VALIDATION_FAILURE, "This demo can only run on devices with ROM version greater than 540");
+        if (m_deviceType != DeviceTypePico4Ultra) {
+            __system_property_get("ro.build.id", buffer);
+            int a, b, c;
+            sscanf(buffer, "%d.%d.%d",&a, &b, &c);
+            m_deviceROM = (a << 8) + (b << 4) + c;
+            Log::Write(Log::Level::Info, Fmt("device ROM: %x", m_deviceROM));
+            if (m_deviceROM < 0x540) {
+                CHECK_XRRESULT(XR_ERROR_VALIDATION_FAILURE, "This demo can only run on devices with ROM version greater than 540");
+            }
         }
 
         XrSystemEyeGazeInteractionPropertiesEXT eyeTrackingSystemProperties{XR_TYPE_SYSTEM_EYE_GAZE_INTERACTION_PROPERTIES_EXT};
@@ -666,10 +671,13 @@ struct OpenXrProgram : IOpenXrProgram {
             const char* interactionProfilePath = nullptr;
             if (m_deviceType == DeviceTypeNeo3 || m_deviceType == DeviceTypeNeo3Pro || m_deviceType == DeviceTypeNeo3ProEye) {
                 interactionProfilePath = "/interaction_profiles/bytedance/pico_neo3_controller";
+            } else if (m_deviceType == DeviceTypePico4Ultra) {
+                interactionProfilePath = "/interaction_profiles/bytedance/pico4s_controller";
             } else {
                 interactionProfilePath = "/interaction_profiles/bytedance/pico4_controller";
             }
-            if (m_deviceROM < 0x540) {
+
+            if (m_deviceROM < 0x540 || m_deviceType == DeviceTypePico4) {
                 interactionProfilePath = "/interaction_profiles/pico/neo3_controller";
             }
 
@@ -711,9 +719,12 @@ struct OpenXrProgram : IOpenXrProgram {
                                                             {m_input.XTouchAction, XTouchPath[Side::LEFT]},
                                                             {m_input.YTouchAction, YTouchPath[Side::LEFT]},
 
-                                                            {m_input.menuAction, menuPath[Side::LEFT]}}};
+//                                                            {m_input.menuAction, menuPath[Side::LEFT]}
+            }};
 
-            if (m_deviceType == DeviceTypeNeo3 || m_deviceType == DeviceTypeNeo3Pro || m_deviceType == DeviceTypeNeo3ProEye) {
+            if (m_deviceType != DeviceTypePico4 && m_deviceType != DeviceTypePico4Ultra && m_deviceROM >= 0x540) {
+                XrActionSuggestedBinding menuLeftBinding{m_input.menuAction, menuPath[Side::LEFT]};
+                bindings.push_back(menuLeftBinding);
                 XrActionSuggestedBinding menuRightBinding{m_input.menuAction, menuPath[Side::RIGHT]};
                 bindings.push_back(menuRightBinding);
             }
@@ -834,14 +845,14 @@ struct OpenXrProgram : IOpenXrProgram {
             CHECK_XRCMD(xrCreateTriangleMeshFB(m_session, &triangleMeshCreateInfo, &m_triangleMesh));
             Log::Write(Log::Level::Info, Fmt("Passthrough-Create Triangle_Mesh:%d", m_triangleMesh));
 
-            XrGeometryInstanceCreateInfoFB geometryInstanceCreateInfo = {XR_TYPE_GEOMETRY_INSTANCE_CREATE_INFO_FB};
-            geometryInstanceCreateInfo.layer = m_passthroughLayerProject;
-            geometryInstanceCreateInfo.mesh = m_triangleMesh;
-            geometryInstanceCreateInfo.baseSpace = m_appSpace;
-            geometryInstanceCreateInfo.pose.orientation.w = 1.0f;
-            geometryInstanceCreateInfo.scale = {1.0f, 1.0f, 1.0f};
-            CHECK_XRCMD(xrCreateGeometryInstanceFB(m_session, &geometryInstanceCreateInfo, &m_geometryInstance));
-            Log::Write(Log::Level::Info, Fmt("Passthrough-Create Geometry Instance:%d", m_geometryInstance));
+//            XrGeometryInstanceCreateInfoFB geometryInstanceCreateInfo = {XR_TYPE_GEOMETRY_INSTANCE_CREATE_INFO_FB};
+//            geometryInstanceCreateInfo.layer = m_passthroughLayerProject;
+//            geometryInstanceCreateInfo.mesh = m_triangleMesh;
+//            geometryInstanceCreateInfo.baseSpace = m_appSpace;
+//            geometryInstanceCreateInfo.pose.orientation.w = 1.0f;
+//            geometryInstanceCreateInfo.scale = {1.0f, 1.0f, 1.0f};
+//            CHECK_XRCMD(xrCreateGeometryInstanceFB(m_session, &geometryInstanceCreateInfo, &m_geometryInstance));
+//            Log::Write(Log::Level::Info, Fmt("Passthrough-Create Geometry Instance:%d", m_geometryInstance));
         }
 
 
